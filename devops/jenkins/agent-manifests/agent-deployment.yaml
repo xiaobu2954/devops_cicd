@@ -1,0 +1,66 @@
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  labels:
+    k8s-app: jenkinsagent
+  name: jenkinsagent
+  namespace: jenkins
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      k8s-app: jenkinsagent
+  template:
+    metadata:
+      labels:
+        k8s-app: jenkinsagent
+      namespace: devops
+      name: jenkinsagent
+    spec:
+      hostAliases:
+        - ip: "192.168.1.200"
+          hostnames:
+            - "gitlab.idevops.site"
+        - ip: "192.168.1.200"
+          hostnames:
+            - "sonar.idevops.site"
+        - ip: "192.168.1.200"
+          hostnames:
+            - "nexus.idevops.site"
+      containers:
+        - name: jenkinsagent
+          #image: ccr.ccs.tencentyun.com/devopsvip/inbound-agent:latest-jdk11
+          image: ccr.ccs.tencentyun.com/devopsvip/custom-build-agent:v2
+          securityContext:
+            privileged: true
+          imagePullPolicy: IfNotPresent
+          resources:
+            limits:
+              cpu: 4000m
+              memory: 8Gi
+            requests:
+              cpu: 500m
+              memory: 512Mi
+          env:
+            - name: JENKINS_URL
+              value: http://jenkins.jenkins.svc.cluster.local:8080
+            - name: JENKINS_SECRET
+              value: c06fec7af4f8c413a72909cd94dfc9aa6d4d6ba23434b27d3327b6d7bce4d8a3
+            - name: JENKINS_AGENT_NAME
+              value: build
+            - name: JENKINS_AGENT_WORKDIR
+              value: /home/jenkins/workspace
+          volumeMounts:
+            - name: jenkins-build-cache
+              mountPath: /home/jenkins/jenkins-build-cache
+            - name: jenkins-workspace
+              mountPath: /home/jenkins/workspace
+      volumes:
+        - name: jenkins-build-cache
+          persistentVolumeClaim:
+            claimName: jenkins-build-cache
+        - name: jenkins-workspace
+          persistentVolumeClaim:
+            claimName: jenkins-workspace
